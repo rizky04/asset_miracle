@@ -4,7 +4,7 @@
 (function () {
     'use strict';
 
-    const API = 'http://localhost/IT_ASSET/api';
+    const API = 'http://localhost/asset_miracle/api';
 
     // Category colors for charts
     const CATEGORY_COLORS = {
