@@ -32,6 +32,10 @@
                 <i class="fas fa-hand-holding"></i>
                 <span>Peminjaman</span>
             </a>
+            <a href="#" class="nav-item" data-page="handover">
+                <i class="fas fa-file-signature"></i>
+                <span>Serah Terima</span>
+            </a>
             <a href="#" class="nav-item" data-page="reports">
                 <i class="fas fa-file-alt"></i>
                 <span>Laporan</span>
@@ -213,6 +217,81 @@
                             </thead>
                             <tbody id="lendingTableBody"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Handover Page -->
+        <section class="page" id="page-handover">
+            <!-- Tabs -->
+            <div class="handover-tabs">
+                <button class="htab active" data-tab="laptop">
+                    <i class="fas fa-laptop"></i> Serah Terima Laptop
+                </button>
+                <button class="htab" data-tab="add_on">
+                    <i class="fas fa-tablet-alt"></i> Serah Terima Add On
+                </button>
+            </div>
+
+            <!-- Tab: Laptop -->
+            <div class="htab-content active" id="htab-laptop">
+                <div class="page-actions" style="margin-top:20px;">
+                    <div></div>
+                    <button class="btn btn-primary" id="btnAddLaptopHandover">
+                        <i class="fas fa-plus"></i> Buat Dokumen Laptop
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="card-body no-padding">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>No. Dokumen</th>
+                                        <th>Tanggal</th>
+                                        <th>Diserahkan Oleh</th>
+                                        <th>Diterima Oleh</th>
+                                        <th>Departemen</th>
+                                        <th>Merek / Type</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="laptopHandoverBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Add On -->
+            <div class="htab-content" id="htab-add_on">
+                <div class="page-actions" style="margin-top:20px;">
+                    <div></div>
+                    <button class="btn btn-primary" id="btnAddAddOnHandover">
+                        <i class="fas fa-plus"></i> Buat Dokumen Add On
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="card-body no-padding">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>No. Dokumen</th>
+                                        <th>Tanggal</th>
+                                        <th>Diserahkan Oleh</th>
+                                        <th>Diterima Oleh</th>
+                                        <th>Departemen</th>
+                                        <th>Perangkat</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="addOnHandoverBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -448,6 +527,226 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="cancelDetailModal">Tutup</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal: Serah Terima Laptop -->
+    <div class="modal-overlay" id="laptopHandoverModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3><i class="fas fa-laptop"></i> Form Serah Terima Laptop</h3>
+                <button class="modal-close" onclick="window.appActions.closeHandoverModal('laptopHandoverModal')">&times;</button>
+            </div>
+            <form id="laptopHandoverForm">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tanggal *</label>
+                            <input type="date" id="lp_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Label Perangkat</label>
+                            <input type="text" id="lp_deviceLabel" placeholder="Contoh: 1 (satu) Buah Laptop">
+                        </div>
+                    </div>
+
+                    <div class="handover-parties">
+                        <div class="party-box">
+                            <div class="party-title"><i class="fas fa-user-tie"></i> Pihak Pertama (Penyerah)</div>
+                            <div class="form-group">
+                                <label>Nama *</label>
+                                <input type="text" id="lp_fromName" required placeholder="Nama penyerah">
+                            </div>
+                            <div class="form-group">
+                                <label>Jabatan</label>
+                                <input type="text" id="lp_fromPosition" placeholder="Jabatan">
+                            </div>
+                            <div class="form-group">
+                                <label>Departemen</label>
+                                <input type="text" id="lp_fromDept" value="IT" placeholder="Departemen">
+                            </div>
+                            <div class="form-group">
+                                <label>Kepala Departemen</label>
+                                <input type="text" id="lp_deptHead" placeholder="Nama Dept Head (untuk TTD)">
+                            </div>
+                        </div>
+                        <div class="party-box">
+                            <div class="party-title"><i class="fas fa-user"></i> Pihak Kedua (Penerima)</div>
+                            <div class="form-group">
+                                <label>Nama *</label>
+                                <input type="text" id="lp_toName" required placeholder="Nama penerima">
+                            </div>
+                            <div class="form-group">
+                                <label>Jabatan</label>
+                                <input type="text" id="lp_toPosition" placeholder="Jabatan">
+                            </div>
+                            <div class="form-group">
+                                <label>Departemen *</label>
+                                <input type="text" id="lp_toDept" required placeholder="Departemen">
+                            </div>
+                            <div class="form-group">
+                                <label>Alamat</label>
+                                <textarea id="lp_toAddress" rows="2" placeholder="Alamat lengkap"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spesifikasi Laptop -->
+                    <div class="spec-section">
+                        <div class="spec-title"><i class="fas fa-microchip"></i> Spesifikasi Laptop</div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Merek</label><input type="text" id="lp_merek" placeholder="Lenovo, Asus, dll"></div>
+                            <div class="form-group"><label>Type / Model</label><input type="text" id="lp_type" placeholder="Ideapad Slim 3 14IRH10"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Serial Number</label><input type="text" id="lp_sn" placeholder="Serial Number"></div>
+                            <div class="form-group"><label>Processor</label><input type="text" id="lp_processor" placeholder="Core i5-1315H"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Storage</label><input type="text" id="lp_storage" placeholder="SSD 512GB"></div>
+                            <div class="form-group"><label>RAM</label><input type="text" id="lp_ram" placeholder="16 GB"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Ukuran Layar</label><input type="text" id="lp_screen" placeholder="14 inch"></div>
+                            <div class="form-group"><label>Sistem Operasi</label><input type="text" id="lp_os" placeholder="Windows 11 Home SL"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Office</label><input type="text" id="lp_office" placeholder="MS Office 365 Business"></div>
+                            <div class="form-group"></div>
+                        </div>
+                    </div>
+
+                    <!-- Software Terinstall -->
+                    <div class="dynlist-section">
+                        <div class="dynlist-header">
+                            <span><i class="fas fa-list"></i> Software Terinstall</span>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addDynRow('lp_softwareList')"><i class="fas fa-plus"></i> Tambah</button>
+                        </div>
+                        <div id="lp_softwareList" class="dynlist-body"></div>
+                    </div>
+
+                    <!-- Kelengkapan -->
+                    <div class="dynlist-section">
+                        <div class="dynlist-header">
+                            <span><i class="fas fa-box-open"></i> Kelengkapan Tambahan</span>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addDynRow('lp_accessoriesList')"><i class="fas fa-plus"></i> Tambah</button>
+                        </div>
+                        <div id="lp_accessoriesList" class="dynlist-body"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.appActions.closeHandoverModal('laptopHandoverModal')">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-print"></i> Simpan & Cetak</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Serah Terima Add On -->
+    <div class="modal-overlay" id="addOnHandoverModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3><i class="fas fa-tablet-alt"></i> Form Serah Terima Add On</h3>
+                <button class="modal-close" onclick="window.appActions.closeHandoverModal('addOnHandoverModal')">&times;</button>
+            </div>
+            <form id="addOnHandoverForm">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tanggal *</label>
+                            <input type="date" id="ao_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Label Perangkat</label>
+                            <input type="text" id="ao_deviceLabel" placeholder="Contoh: 1 (satu) Buah Tablet PC">
+                        </div>
+                    </div>
+
+                    <div class="handover-parties">
+                        <div class="party-box">
+                            <div class="party-title"><i class="fas fa-user-tie"></i> Pihak Pertama (Penyerah)</div>
+                            <div class="form-group">
+                                <label>Nama *</label>
+                                <input type="text" id="ao_fromName" required placeholder="Nama penyerah">
+                            </div>
+                            <div class="form-group">
+                                <label>Jabatan</label>
+                                <input type="text" id="ao_fromPosition" placeholder="Jabatan">
+                            </div>
+                            <div class="form-group">
+                                <label>Departemen</label>
+                                <input type="text" id="ao_fromDept" value="IT" placeholder="Departemen">
+                            </div>
+                            <div class="form-group">
+                                <label>Kepala Departemen</label>
+                                <input type="text" id="ao_deptHead" placeholder="Nama Dept Head (untuk TTD)">
+                            </div>
+                        </div>
+                        <div class="party-box">
+                            <div class="party-title"><i class="fas fa-user"></i> Pihak Kedua (Penerima)</div>
+                            <div class="form-group">
+                                <label>Nama *</label>
+                                <input type="text" id="ao_toName" required placeholder="Nama penerima">
+                            </div>
+                            <div class="form-group">
+                                <label>Jabatan</label>
+                                <input type="text" id="ao_toPosition" placeholder="Jabatan">
+                            </div>
+                            <div class="form-group">
+                                <label>Departemen *</label>
+                                <input type="text" id="ao_toDept" required placeholder="Departemen">
+                            </div>
+                            <div class="form-group">
+                                <label>Alamat</label>
+                                <textarea id="ao_toAddress" rows="2" placeholder="Alamat lengkap"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spesifikasi Perangkat -->
+                    <div class="spec-section">
+                        <div class="spec-title"><i class="fas fa-microchip"></i> Spesifikasi Perangkat</div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Merek</label><input type="text" id="ao_merek" placeholder="Samsung, Apple, dll"></div>
+                            <div class="form-group"><label>Type / Model</label><input type="text" id="ao_type" placeholder="Galaxy Tab S10 FE 5G"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Serial Number</label><input type="text" id="ao_sn" placeholder="Serial Number"></div>
+                            <div class="form-group"><label>Processor</label><input type="text" id="ao_processor" placeholder="- (opsional)"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Storage</label><input type="text" id="ao_storage" placeholder="128GB"></div>
+                            <div class="form-group"><label>RAM</label><input type="text" id="ao_ram" placeholder="8GB"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Ukuran Layar</label><input type="text" id="ao_screen" placeholder="10 inch"></div>
+                            <div class="form-group"></div>
+                        </div>
+                    </div>
+
+                    <!-- Software Terinstall -->
+                    <div class="dynlist-section">
+                        <div class="dynlist-header">
+                            <span><i class="fas fa-list"></i> Software Terinstall</span>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addDynRow('ao_softwareList')"><i class="fas fa-plus"></i> Tambah</button>
+                        </div>
+                        <div id="ao_softwareList" class="dynlist-body"></div>
+                    </div>
+
+                    <!-- Kelengkapan -->
+                    <div class="dynlist-section">
+                        <div class="dynlist-header">
+                            <span><i class="fas fa-box-open"></i> Kelengkapan Tambahan</span>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addDynRow('ao_accessoriesList')"><i class="fas fa-plus"></i> Tambah</button>
+                        </div>
+                        <div id="ao_accessoriesList" class="dynlist-body"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.appActions.closeHandoverModal('addOnHandoverModal')">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-print"></i> Simpan & Cetak</button>
+                </div>
+            </form>
         </div>
     </div>
 

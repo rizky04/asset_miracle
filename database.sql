@@ -47,6 +47,37 @@ CREATE TABLE `lendings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ====================================================
+-- Tabel: handovers (Serah Terima Laptop & Add On)
+-- ====================================================
+CREATE TABLE IF NOT EXISTS `handovers` (
+    `id`               INT AUTO_INCREMENT PRIMARY KEY,
+    `doc_number`       VARCHAR(50)          NOT NULL,
+    `type`             ENUM('laptop','add_on') DEFAULT 'laptop',
+    `handover_date`    DATE                 NOT NULL,
+    `from_name`        VARCHAR(100)         NOT NULL,
+    `from_position`    VARCHAR(100)         DEFAULT '',
+    `from_department`  VARCHAR(100)         DEFAULT 'IT',
+    `dept_head`        VARCHAR(100)         DEFAULT '',
+    `to_name`          VARCHAR(100)         NOT NULL,
+    `to_position`      VARCHAR(100)         DEFAULT '',
+    `to_department`    VARCHAR(100)         NOT NULL,
+    `to_address`       TEXT,
+    `device_label`     VARCHAR(200)         DEFAULT '',
+    `merek`            VARCHAR(100)         DEFAULT '',
+    `type_device`      VARCHAR(200)         DEFAULT '',
+    `serial_number`    VARCHAR(100)         DEFAULT '',
+    `processor`        VARCHAR(100)         DEFAULT '',
+    `storage`          VARCHAR(100)         DEFAULT '',
+    `ram`              VARCHAR(100)         DEFAULT '',
+    `screen_size`      VARCHAR(100)         DEFAULT '',
+    `os`               VARCHAR(100)         DEFAULT '',
+    `office_sw`        VARCHAR(100)         DEFAULT '',
+    `software_list`    JSON,
+    `accessories_list` JSON,
+    `created_at`       TIMESTAMP            DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================
 -- Seed: 150 data aset
 -- ====================================================
 INSERT INTO `assets` (`id`, `category`, `name`, `material`, `brand`, `code`, `qty`, `good`, `broken`, `pic`, `for_sale`, `obsolete`) VALUES

@@ -32,6 +32,7 @@
     // ====== State ======
     let assets = [];
     let lendings = [];
+    let handovers = [];
 
     // ====== API Helpers ======
     async function apiGet(endpoint, params = {}) {
@@ -85,18 +86,21 @@
         setupFilters();
         setupSearch();
         setupReportButtons();
+        setupHandoverModal();
         renderDashboard();
         renderAssets();
         renderLendings();
+        renderHandovers();
         renderReports();
     }
 
     // ====== Data Loading ======
     async function loadData() {
         try {
-            [assets, lendings] = await Promise.all([
+            [assets, lendings, handovers] = await Promise.all([
                 apiGet(`${API}/assets.php`),
                 apiGet(`${API}/lendings.php`),
+                apiGet(`${API}/handovers.php`),
             ]);
         } catch (err) {
             console.error('Failed to load data:', err);
@@ -129,6 +133,7 @@
             dashboard: 'Dashboard',
             assets: 'Data Aset',
             lending: 'Peminjaman Aset',
+            handover: 'Serah Terima',
             reports: 'Laporan'
         };
 
@@ -149,6 +154,7 @@
 
                 // Refresh data when switching pages
                 if (page === 'dashboard') renderDashboard();
+                if (page === 'handover') renderHandovers();
                 if (page === 'reports') renderReports();
             });
         });
@@ -896,6 +902,528 @@
         }, 3000);
     }
 
+    // ====== Serah Terima / Handover ======
+    let editingHandoverId = null;
+
+    function setupHandoverModal() {
+        // Tab switching
+        document.querySelectorAll('.htab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.htab').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.htab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('htab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Laptop modal
+        document.getElementById('btnAddLaptopHandover').addEventListener('click', () => openHandoverModal('laptop'));
+        document.getElementById('laptopHandoverForm').addEventListener('submit', (e) => handleHandoverSubmit(e, 'laptop'));
+
+        // Add On modal
+        document.getElementById('btnAddAddOnHandover').addEventListener('click', () => openHandoverModal('add_on'));
+        document.getElementById('addOnHandoverForm').addEventListener('submit', (e) => handleHandoverSubmit(e, 'add_on'));
+    }
+
+    // Global function for dynamic list (called from inline onclick)
+    window.addDynRow = function(containerId, value = '') {
+        const container = document.getElementById(containerId);
+        const idx = container.children.length;
+        const letters = 'abcdefghijklmnopqrstuvwxyz';
+        const letter = letters[idx] || (idx + 1);
+        const row = document.createElement('div');
+        row.className = 'dynlist-row';
+        row.innerHTML = `
+            <span class="dynlist-letter">${letter}.</span>
+            <input type="text" class="dynlist-input" value="${escapeHtml(value)}" placeholder="Isi item...">
+            <button type="button" class="btn-icon delete dynlist-remove" onclick="this.closest('.dynlist-row').remove(); reindexDynList('${containerId}')">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(row);
+    };
+
+    window.reindexDynList = function(containerId) {
+        const letters = 'abcdefghijklmnopqrstuvwxyz';
+        document.querySelectorAll(`#${containerId} .dynlist-letter`).forEach((span, i) => {
+            span.textContent = (letters[i] || (i + 1)) + '.';
+        });
+    };
+
+    function getDynListValues(containerId) {
+        return Array.from(document.querySelectorAll(`#${containerId} .dynlist-input`))
+            .map(inp => inp.value.trim())
+            .filter(v => v !== '');
+    }
+
+    function openHandoverModal(type, data = null) {
+        editingHandoverId = data ? data.id : null;
+        const today = new Date().toISOString().split('T')[0];
+
+        if (type === 'laptop') {
+            document.getElementById('laptopHandoverForm').reset();
+            document.getElementById('lp_softwareList').innerHTML = '';
+            document.getElementById('lp_accessoriesList').innerHTML = '';
+
+            if (data) {
+                // Edit mode — fill existing data
+                document.querySelector('#laptopHandoverModal .modal-header h3').innerHTML =
+                    '<i class="fas fa-laptop"></i> Edit Form Serah Terima Laptop';
+                document.querySelector('#laptopHandoverModal .modal-footer .btn-primary').innerHTML =
+                    '<i class="fas fa-save"></i> Simpan Perubahan';
+                document.getElementById('lp_date').value         = data.handover_date;
+                document.getElementById('lp_deviceLabel').value  = data.device_label || '';
+                document.getElementById('lp_fromName').value     = data.from_name || '';
+                document.getElementById('lp_fromPosition').value = data.from_position || '';
+                document.getElementById('lp_fromDept').value     = data.from_department || 'IT';
+                document.getElementById('lp_deptHead').value     = data.dept_head || '';
+                document.getElementById('lp_toName').value       = data.to_name || '';
+                document.getElementById('lp_toPosition').value   = data.to_position || '';
+                document.getElementById('lp_toDept').value       = data.to_department || '';
+                document.getElementById('lp_toAddress').value    = data.to_address || '';
+                document.getElementById('lp_merek').value        = data.merek || '';
+                document.getElementById('lp_type').value         = data.type_device || '';
+                document.getElementById('lp_sn').value           = data.serial_number || '';
+                document.getElementById('lp_processor').value    = data.processor || '';
+                document.getElementById('lp_storage').value      = data.storage || '';
+                document.getElementById('lp_ram').value          = data.ram || '';
+                document.getElementById('lp_screen').value       = data.screen_size || '';
+                document.getElementById('lp_os').value           = data.os || '';
+                document.getElementById('lp_office').value       = data.office_sw || '';
+                (data.software_list || []).forEach(s => window.addDynRow('lp_softwareList', s));
+                (data.accessories_list || []).forEach(a => window.addDynRow('lp_accessoriesList', a));
+            } else {
+                // Create mode — defaults
+                document.querySelector('#laptopHandoverModal .modal-header h3').innerHTML =
+                    '<i class="fas fa-laptop"></i> Form Serah Terima Laptop';
+                document.querySelector('#laptopHandoverModal .modal-footer .btn-primary').innerHTML =
+                    '<i class="fas fa-print"></i> Simpan & Cetak';
+                document.getElementById('lp_date').value         = today;
+                document.getElementById('lp_fromPosition').value = 'IT Hardware & Infrastructure Staff';
+                document.getElementById('lp_fromDept').value     = 'IT';
+                document.getElementById('lp_deviceLabel').value  = '1 (satu) Buah Laptop';
+                ['Avast Free Antivirus','Google Chrome','Anydesk','Microsoft Edge','Office 365 Business','Tight VNC']
+                    .forEach(s => window.addDynRow('lp_softwareList', s));
+                ['Charger','Tas'].forEach(a => window.addDynRow('lp_accessoriesList', a));
+            }
+            openModal('laptopHandoverModal');
+        } else {
+            document.getElementById('addOnHandoverForm').reset();
+            document.getElementById('ao_softwareList').innerHTML = '';
+            document.getElementById('ao_accessoriesList').innerHTML = '';
+
+            if (data) {
+                document.querySelector('#addOnHandoverModal .modal-header h3').innerHTML =
+                    '<i class="fas fa-tablet-alt"></i> Edit Form Serah Terima Add On';
+                document.querySelector('#addOnHandoverModal .modal-footer .btn-primary').innerHTML =
+                    '<i class="fas fa-save"></i> Simpan Perubahan';
+                document.getElementById('ao_date').value         = data.handover_date;
+                document.getElementById('ao_deviceLabel').value  = data.device_label || '';
+                document.getElementById('ao_fromName').value     = data.from_name || '';
+                document.getElementById('ao_fromPosition').value = data.from_position || '';
+                document.getElementById('ao_fromDept').value     = data.from_department || 'IT';
+                document.getElementById('ao_deptHead').value     = data.dept_head || '';
+                document.getElementById('ao_toName').value       = data.to_name || '';
+                document.getElementById('ao_toPosition').value   = data.to_position || '';
+                document.getElementById('ao_toDept').value       = data.to_department || '';
+                document.getElementById('ao_toAddress').value    = data.to_address || '';
+                document.getElementById('ao_merek').value        = data.merek || '';
+                document.getElementById('ao_type').value         = data.type_device || '';
+                document.getElementById('ao_sn').value           = data.serial_number || '';
+                document.getElementById('ao_processor').value    = data.processor || '';
+                document.getElementById('ao_storage').value      = data.storage || '';
+                document.getElementById('ao_ram').value          = data.ram || '';
+                document.getElementById('ao_screen').value       = data.screen_size || '';
+                (data.software_list || []).forEach(s => window.addDynRow('ao_softwareList', s));
+                (data.accessories_list || []).forEach(a => window.addDynRow('ao_accessoriesList', a));
+            } else {
+                document.querySelector('#addOnHandoverModal .modal-header h3').innerHTML =
+                    '<i class="fas fa-tablet-alt"></i> Form Serah Terima Add On';
+                document.querySelector('#addOnHandoverModal .modal-footer .btn-primary').innerHTML =
+                    '<i class="fas fa-print"></i> Simpan & Cetak';
+                document.getElementById('ao_date').value         = today;
+                document.getElementById('ao_fromPosition').value = 'IT Generalist';
+                document.getElementById('ao_fromDept').value     = 'IT';
+                document.getElementById('ao_deviceLabel').value  = '1 (satu) Buah Tablet PC';
+                ['Kabel Data','Charger'].forEach(a => window.addDynRow('ao_accessoriesList', a));
+            }
+            openModal('addOnHandoverModal');
+        }
+    }
+
+    async function editHandover(id) {
+        try {
+            const data = await apiGet(`${API}/handovers.php`, { id });
+            openHandoverModal(data.type, data);
+        } catch (err) {
+            showToast('Gagal memuat data: ' + err.message, 'error');
+        }
+    }
+
+    async function handleHandoverSubmit(e, type) {
+        e.preventDefault();
+        const p = type === 'laptop' ? 'lp' : 'ao';
+
+        const data = {
+            type,
+            handoverDate:   document.getElementById(`${p}_date`).value,
+            fromName:       document.getElementById(`${p}_fromName`).value.trim(),
+            fromPosition:   document.getElementById(`${p}_fromPosition`).value.trim(),
+            fromDepartment: document.getElementById(`${p}_fromDept`).value.trim(),
+            deptHead:       document.getElementById(`${p}_deptHead`).value.trim(),
+            toName:         document.getElementById(`${p}_toName`).value.trim(),
+            toPosition:     document.getElementById(`${p}_toPosition`).value.trim(),
+            toDepartment:   document.getElementById(`${p}_toDept`).value.trim(),
+            toAddress:      document.getElementById(`${p}_toAddress`).value.trim(),
+            deviceLabel:    document.getElementById(`${p}_deviceLabel`).value.trim(),
+            merek:          document.getElementById(`${p}_merek`).value.trim(),
+            typeDevice:     document.getElementById(`${p}_type`).value.trim(),
+            serialNumber:   document.getElementById(`${p}_sn`).value.trim(),
+            processor:      document.getElementById(`${p}_processor`).value.trim(),
+            storage:        document.getElementById(`${p}_storage`).value.trim(),
+            ram:            document.getElementById(`${p}_ram`).value.trim(),
+            screenSize:     document.getElementById(`${p}_screen`).value.trim(),
+            softwareList:    getDynListValues(`${p}_softwareList`),
+            accessoriesList: getDynListValues(`${p}_accessoriesList`),
+        };
+
+        if (type === 'laptop') {
+            data.os      = document.getElementById('lp_os').value.trim();
+            data.officeSw = document.getElementById('lp_office').value.trim();
+        }
+
+        try {
+            const modalId = type === 'laptop' ? 'laptopHandoverModal' : 'addOnHandoverModal';
+            if (editingHandoverId) {
+                // Edit mode — PUT
+                data.id = editingHandoverId;
+                await apiPut(`${API}/handovers.php`, data);
+                showToast('Dokumen berhasil diperbarui', 'success');
+                closeModal(modalId);
+                handovers = await apiGet(`${API}/handovers.php`);
+                renderHandovers();
+            } else {
+                // Create mode — POST
+                const res = await apiPost(`${API}/handovers.php`, data);
+                showToast('Dokumen berhasil disimpan', 'success');
+                closeModal(modalId);
+                handovers = await apiGet(`${API}/handovers.php`);
+                renderHandovers();
+                printHandover(res.id);
+            }
+            editingHandoverId = null;
+        } catch (err) {
+            showToast('Gagal menyimpan: ' + err.message, 'error');
+        }
+    }
+
+    async function deleteHandover(id) {
+        if (!confirm('Hapus dokumen serah terima ini?')) return;
+        try {
+            await apiDelete(`${API}/handovers.php`, { id });
+            handovers = await apiGet(`${API}/handovers.php`);
+            renderHandovers();
+            showToast('Dokumen berhasil dihapus', 'success');
+        } catch (err) {
+            showToast('Gagal: ' + err.message, 'error');
+        }
+    }
+
+    async function printHandover(id) {
+        try {
+            const data = await apiGet(`${API}/handovers.php`, { id });
+            const html = data.type === 'laptop' ? buildLaptopPrintHTML(data) : buildAddOnPrintHTML(data);
+            const win = window.open('', '_blank', 'width=900,height=750');
+            win.document.write(html);
+            win.document.close();
+            win.focus();
+            setTimeout(() => win.print(), 700);
+        } catch (err) {
+            showToast('Gagal membuka print: ' + err.message, 'error');
+        }
+    }
+
+    function formatDateLong(dateStr) {
+        if (!dateStr) return '-';
+        const months = ['Januari','Februari','Maret','April','Mei','Juni',
+                        'Juli','Agustus','September','Oktober','November','Desember'];
+        const d = new Date(dateStr);
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    const PRINT_CSS = `
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { font-family:'Arial',sans-serif; font-size:11pt; color:#111; background:#fff; }
+      .wrap { padding:15mm 20mm; }
+      .center { text-align:center; }
+      .bold { font-weight:bold; }
+      .title { font-size:13pt; font-weight:bold; text-transform:uppercase; text-align:center; margin-bottom:16px; text-decoration:underline; }
+      .intro { margin-bottom:10px; font-size:10.5pt; }
+      .field-row { display:flex; margin-bottom:4px; font-size:10.5pt; }
+      .field-label { min-width:110px; }
+      .field-sep { min-width:10px; }
+      .field-val { flex:1; }
+      .indent { margin-left:30px; }
+      .numbered-list { margin-left:30px; margin-bottom:10px; }
+      .numbered-list .nitem { margin-bottom:3px; font-size:10.5pt; }
+      .spec-table { width:100%; margin:8px 0 14px 40px; font-size:10.5pt; }
+      .spec-table td { padding:2px 4px 2px 0; vertical-align:top; }
+      .spec-table td:first-child { min-width:22px; }
+      .spec-table td:nth-child(2) { min-width:130px; }
+      .spec-table td:nth-child(3) { min-width:14px; }
+      .sub-list { margin-left:40px; font-size:10.5pt; }
+      .sub-list .sitem { margin-bottom:2px; }
+      .legal { font-size:10.5pt; margin-bottom:6px; text-align:justify; line-height:1.55; }
+      .legal-num { margin-left:30px; margin-bottom:8px; font-size:10.5pt; text-align:justify; line-height:1.55; }
+      .closing { font-size:10.5pt; margin-bottom:14px; text-align:justify; }
+      .date-line { font-size:10.5pt; margin-bottom:20px; }
+      .sig-area { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+      .sig-col { font-size:10.5pt; }
+      .sig-col .sig-head { margin-bottom:4px; }
+      .sig-col .sig-space { height:60px; }
+      .sig-col .sig-row { display:flex; gap:40px; }
+      .sig-col .sig-item { text-align:center; min-width:120px; }
+      .sig-col .sig-line { border-bottom:1px solid #111; margin-bottom:4px; height:55px; }
+      @media print { @page { margin:10mm; } body { font-size:10.5pt; } .wrap { padding:0; } }
+    `;
+
+    function buildLaptopPrintHTML(d) {
+        const letters = 'abcdefghijklmnopqrstuvwxyz';
+        const softwareRows = (d.software_list || []).map((s, i) =>
+            `<tr><td>${letters[i]}.</td><td>${s}</td><td></td><td></td></tr>`).join('');
+        const accRows = (d.accessories_list || []).map((a, i) =>
+            `<tr><td>${letters[i]}.</td><td>${a}</td><td></td><td></td></tr>`).join('');
+        const tanggal = formatDateLong(d.handover_date);
+        const city = d.to_department.split(' ')[0] || 'Surabaya';
+
+        return `<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8"><title>Serah Terima Laptop - ${d.doc_number}</title>
+<style>${PRINT_CSS}</style></head>
+<body><div class="wrap">
+  <p class="title">SERAH TERIMA FASILITAS PERUSAHAAN</p>
+
+  <p class="intro">Yang bertandatangan dibawah ini :</p>
+  <div style="margin-left:20px;margin-bottom:10px;">
+    <div class="field-row"><span class="field-label">Nama</span><span class="field-sep">:</span><span class="field-val">${d.from_name}</span></div>
+    <div class="field-row"><span class="field-label">Jabatan</span><span class="field-sep">:</span><span class="field-val">${d.from_position}</span></div>
+    <div class="field-row"><span class="field-label">Departemen</span><span class="field-sep">:</span><span class="field-val">${d.from_department || 'IT'}</span></div>
+  </div>
+  <p class="legal" style="margin-left:0;margin-bottom:10px;">Dalam hal ini bertindak untuk dan atas nama PT. Grahadhika Sarana Purnajati sesuai dengan kewenangan jabatannya yang selanjutnya disebut sebagai <strong>Pihak Pertama</strong> atau Yang Menyerahkan</p>
+
+  <div style="margin-left:20px;margin-bottom:10px;">
+    <div class="field-row"><span class="field-label">Nama</span><span class="field-sep">:</span><span class="field-val">${d.to_name}</span></div>
+    <div class="field-row"><span class="field-label">Jabatan</span><span class="field-sep">:</span><span class="field-val">${d.to_position}</span></div>
+    <div class="field-row"><span class="field-label">Departemen</span><span class="field-sep">:</span><span class="field-val">${d.to_department}</span></div>
+    ${d.to_address ? `<div class="field-row"><span class="field-label">Alamat</span><span class="field-sep">:</span><span class="field-val">${d.to_address}</span></div>` : ''}
+  </div>
+  <p class="legal" style="margin-bottom:12px;">Dalam hal ini bertindak untuk dan atas nama dirinya sendiri sesuai dengan jabatan, yang selanjutnya disebut sebagai <strong>Pihak Kedua</strong> atau Yang Menerima.</p>
+
+  <p class="legal" style="margin-bottom:10px;">Bahwa untuk menunjang kinerja dari Pihak Kedua, maka dengan ini Pihak Pertama telah menyerahkan fasilitas perusahaan untuk digunakan oleh Pihak Kedua sesuai dengan data dibawah ini, antara Lain :</p>
+
+  <p class="indent bold" style="margin-bottom:6px;">1. ${d.device_label || '1 (satu) Buah Laptop'}, dengan data spesifikasi sebagai berikut :</p>
+  <table class="spec-table">
+    <tr><td>a.</td><td>Merek</td><td>:</td><td>${d.merek || '-'}</td></tr>
+    <tr><td>b.</td><td>Type</td><td>:</td><td>${d.type_device || '-'}</td></tr>
+    <tr><td>c.</td><td>Serial Number</td><td>:</td><td>${d.serial_number || '-'}</td></tr>
+    <tr><td>d.</td><td>Processor</td><td>:</td><td>${d.processor || '-'}</td></tr>
+    <tr><td>e.</td><td>Storage</td><td>:</td><td>${d.storage || '-'}</td></tr>
+    <tr><td>f.</td><td>RAM</td><td>:</td><td>${d.ram || '-'}</td></tr>
+    <tr><td>g.</td><td>Ukuran Layar</td><td>:</td><td>${d.screen_size || '-'}</td></tr>
+    ${d.os ? `<tr><td>h.</td><td>Sistem Operasi</td><td>:</td><td>${d.os}</td></tr>` : ''}
+    ${d.office_sw ? `<tr><td>i.</td><td>Office</td><td>:</td><td>${d.office_sw}</td></tr>` : ''}
+  </table>
+
+  <p class="indent bold" style="margin-bottom:4px;">2. Software Terinstall, antara lain :</p>
+  ${d.software_list && d.software_list.length > 0
+    ? `<table class="spec-table">${softwareRows}</table>`
+    : '<p class="sub-list">-</p>'}
+
+  <p class="indent bold" style="margin-bottom:4px;">3. Kelengkapan tambahan, antara lain :</p>
+  ${d.accessories_list && d.accessories_list.length > 0
+    ? `<table class="spec-table">${accRows}</table>`
+    : '<p class="sub-list">-</p>'}
+
+  <p class="legal" style="margin-bottom:10px;">Fasilitas tersebut diserahkan oleh Pihak Pertama kepada Pihak Kedua berkaitan dengan jabatannya sebagai <strong>${d.to_position || d.to_department}</strong>, dengan dilakukannya serah terima ini maka berlaku beberapa hal yang harus diperhatikan, antara lain:</p>
+
+  <div class="legal-num">1. Bahwa Fasilitas perusahaan yang diterima oleh Pihak Kedua tidak diperbolehkan untuk dipindah tangankan dan atau dilakukan pengalihan fasilitas kepada orang lain selain dan tanpa adanya persetujuan atasan dan Persetujuan Pihak Pertama.</div>
+  <div class="legal-num">2. Bahwa Pihak Kedua bertanggung jawab secara penuh atas segala resiko yang terjadi dikarenakan timbulnya kerusakan dan atau kehilangan yang diakibatkan dari kelalaian Pihak Kedua yang dilakukan secara sengaja dan atau tidak sengaja selama penggunaan fasilitas tersebut. serta Pihak Kedua berkewajiban menanggung segala kerusakan secara pribadi seusai adanya pengecekan dari Pihak Pertama.</div>
+  <div class="legal-num">3. Bahwa Pihak Kedua bersedia dalam berjalannya waktu penggunaan fasilitas perusahaan tersebut, untuk dapat diperiksa dan atau dilakukannya audit terkait dengan isi dan dokumen yang ada dalam fasilitas tersebut.</div>
+  <div class="legal-num">4. Bahwa Pihak Kedua bertanggung Jawab secara penuh atas data, isi, konten dan dokumen yang berada didalam fasilitas perusahaan tersebut. Serta Pihak Kedua dilarang keras untuk menggunakan fasilitas perusahaan tersebut diluar kepentingan dan tujuan perusahaan yang dilakukan di dalam jam kerja maupun diluar jam kerja.</div>
+  <div class="legal-num" style="margin-bottom:12px;">5. Apabila Pihak Kedua sudah tidak bekerja kembali dan atau mengundurkan diri. maka Pihak Kedua berkewajiban mengembalikan fasiltas perusahaan tersebut dalam keadaan baik sebagaimana mestinya.</div>
+
+  <p class="closing">Demikian serah terima fasilitas perusahaan ini dibuat dan disetujui oleh PARA PIHAK dan menjadi hukum yang dapat dipertanggung jawabkan dikemudian hari.</p>
+
+  <p class="date-line" style="margin-left:40%;">Surabaya, ${tanggal}</p>
+
+  <div class="sig-area">
+    <div class="sig-col">
+      <div class="sig-head bold">Mengetahui,</div>
+      <div class="sig-row" style="margin-top:4px;">
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div class="bold">${d.from_name}</div>
+          <div>Departemen IT</div>
+        </div>
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div class="bold">${d.dept_head || '(________________)'}</div>
+          <div>Departemen Head</div>
+        </div>
+      </div>
+    </div>
+    <div class="sig-col">
+      <div class="sig-head bold">Menyetujui,</div>
+      <div class="sig-row" style="margin-top:4px;">
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div>(________________)</div>
+          <div>HRD - Personalia</div>
+        </div>
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div>(________________)</div>
+          <div>Penerima</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></body></html>`;
+    }
+
+    function buildAddOnPrintHTML(d) {
+        const letters = 'abcdefghijklmnopqrstuvwxyz';
+        const softwareRows = (d.software_list || []).map((s, i) =>
+            `<tr><td>${letters[i]}.</td><td>${s}</td><td></td><td></td></tr>`).join('');
+        const accRows = (d.accessories_list || []).map((a, i) =>
+            `<tr><td>${letters[i]}.</td><td>${a}</td><td></td><td></td></tr>`).join('');
+        const tanggal = formatDateLong(d.handover_date);
+
+        return `<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8"><title>Serah Terima Add On - ${d.doc_number}</title>
+<style>${PRINT_CSS}</style></head>
+<body><div class="wrap">
+  <p class="title">SERAH TERIMA FASILITAS PERUSAHAAN</p>
+
+  <p class="intro">Yang bertandatangan dibawah ini :</p>
+  <div style="margin-left:20px;margin-bottom:10px;">
+    <div class="field-row"><span class="field-label">Nama</span><span class="field-sep">:</span><span class="field-val">${d.from_name}</span></div>
+    <div class="field-row"><span class="field-label">Jabatan</span><span class="field-sep">:</span><span class="field-val">${d.from_position}</span></div>
+    <div class="field-row"><span class="field-label">Departemen</span><span class="field-sep">:</span><span class="field-val">${d.from_department || 'IT'}</span></div>
+  </div>
+  <p class="legal" style="margin-bottom:10px;">Dalam hal ini bertindak untuk dan atas nama PT. Grahadhika Sarana Purnajati sesuai dengan kewenangan jabatannya yang selanjutnya disebut sebagai <strong>Pihak Pertama</strong> atau Yang Menyerahkan</p>
+
+  <div style="margin-left:20px;margin-bottom:10px;">
+    <div class="field-row"><span class="field-label">Nama</span><span class="field-sep">:</span><span class="field-val">${d.to_name}</span></div>
+    <div class="field-row"><span class="field-label">Jabatan</span><span class="field-sep">:</span><span class="field-val">${d.to_position}</span></div>
+    <div class="field-row"><span class="field-label">Departemen</span><span class="field-sep">:</span><span class="field-val">${d.to_department}</span></div>
+    ${d.to_address ? `<div class="field-row"><span class="field-label">Alamat</span><span class="field-sep">:</span><span class="field-val">${d.to_address}</span></div>` : ''}
+  </div>
+  <p class="legal" style="margin-bottom:12px;">Dalam hal ini bertindak untuk dan atas nama dirinya sendiri sesuai dengan jabatan, yang selanjutnya disebut sebagai <strong>Pihak Kedua</strong> atau Yang Menerima.</p>
+
+  <p class="legal" style="margin-bottom:10px;">Bahwa untuk menunjang kinerja dari Pihak Kedua, maka dengan ini Pihak Pertama telah menyerahkan fasilitas perusahaan untuk digunakan oleh Pihak Kedua sesuai dengan data dibawah ini, antara Lain :</p>
+
+  <p class="indent bold" style="margin-bottom:6px;">1. ${d.device_label || '1 (satu) Buah Perangkat'}, dengan data spesifikasi sebagai berikut :</p>
+  <table class="spec-table">
+    <tr><td>a.</td><td>Merek</td><td>:</td><td>${d.merek || '-'}</td></tr>
+    <tr><td>b.</td><td>Type</td><td>:</td><td>${d.type_device || '-'}</td></tr>
+    <tr><td>c.</td><td>Serial Number</td><td>:</td><td>${d.serial_number || '-'}</td></tr>
+    ${d.processor && d.processor !== '-' ? `<tr><td>d.</td><td>Processor</td><td>:</td><td>${d.processor}</td></tr>` : ''}
+    <tr><td>${d.processor && d.processor !== '-' ? 'e' : 'd'}.</td><td>Storage</td><td>:</td><td>${d.storage || '-'}</td></tr>
+    <tr><td>${d.processor && d.processor !== '-' ? 'f' : 'e'}.</td><td>RAM</td><td>:</td><td>${d.ram || '-'}</td></tr>
+    <tr><td>${d.processor && d.processor !== '-' ? 'g' : 'f'}.</td><td>Ukuran Layar</td><td>:</td><td>${d.screen_size || '-'}</td></tr>
+  </table>
+
+  <p class="indent bold" style="margin-bottom:4px;">2. Software Terinstall, antara lain :</p>
+  ${d.software_list && d.software_list.length > 0
+    ? `<table class="spec-table">${softwareRows}</table>`
+    : '<p class="sub-list">-</p>'}
+
+  <p class="indent bold" style="margin-bottom:4px;">3. Kelengkapan tambahan, antara lain :</p>
+  ${d.accessories_list && d.accessories_list.length > 0
+    ? `<table class="spec-table">${accRows}</table>`
+    : '<p class="sub-list">-</p>'}
+
+  <p class="legal" style="margin-bottom:10px;">Fasilitas tersebut diserahkan oleh Pihak Pertama kepada Pihak Kedua berkaitan dengan jabatannya sebagai <strong>${d.to_position || d.to_department}</strong>, dengan dilakukannya serah terima ini maka berlaku beberapa hal yang harus diperhatikan, antara lain:</p>
+
+  <div class="legal-num">1. Bahwa Fasilitas perusahaan yang diterima oleh Pihak Kedua tidak diperbolehkan untuk dipindah tangankan dan atau dilakukan pengalihan fasilitas kepada orang lain selain dan tanpa adanya persetujuan atasan dan Persetujuan Pihak Pertama.</div>
+  <div class="legal-num">2. Bahwa Pihak Kedua bertanggung jawab secara penuh atas segala resiko yang terjadi dikarenakan timbulnya kerusakan dan atau kehilangan yang diakibatkan dari kelalaian Pihak Kedua yang dilakukan secara sengaja dan atau tidak sengaja selama penggunaan fasilitas tersebut. serta Pihak Kedua berkewajiban menanggung segala kerusakan secara pribadi seusai adanya pengecekan dari Pihak Pertama.</div>
+  <div class="legal-num">3. Bahwa Pihak Kedua bersedia dalam berjalannya waktu penggunaan fasilitas perusahaan tersebut, untuk dapat diperiksa dan atau dilakukannya audit terkait dengan isi dan dokumen yang ada dalam fasilitas tersebut.</div>
+  <div class="legal-num">4. Bahwa Pihak Kedua bertanggung Jawab secara penuh atas data, isi, konten dan dokumen yang berada didalam fasilitas perusahaan tersebut. Serta Pihak Kedua dilarang keras untuk menggunakan fasilitas perusahaan tersebut diluar kepentingan dan tujuan perusahaan yang dilakukan di dalam jam kerja maupun diluar jam kerja.</div>
+  <div class="legal-num" style="margin-bottom:12px;">5. Apabila Pihak Kedua sudah tidak bekerja kembali dan atau mengundurkan diri. maka Pihak Kedua berkewajiban mengembalikan fasiltas perusahaan tersebut dalam keadaan baik sebagaimana mestinya.</div>
+
+  <p class="closing">Demikian serah terima fasilitas perusahaan ini dibuat dan disetujui oleh PARA PIHAK dan menjadi hukum yang dapat dipertanggung jawabkan dikemudian hari.</p>
+
+  <p class="date-line" style="margin-left:40%;">Surabaya, ${tanggal}</p>
+
+  <div class="sig-area">
+    <div class="sig-col">
+      <div class="sig-head bold">Mengetahui,</div>
+      <div class="sig-row" style="margin-top:4px;">
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div class="bold">${d.from_name}</div>
+          <div>Departemen IT</div>
+        </div>
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div class="bold">${d.dept_head || '(________________)'}</div>
+          <div>Departemen Head</div>
+        </div>
+      </div>
+    </div>
+    <div class="sig-col">
+      <div class="sig-head bold">Menyetujui,</div>
+      <div class="sig-row" style="margin-top:4px;">
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div>(________________)</div>
+          <div>HRD - Personalia</div>
+        </div>
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div>(________________)</div>
+          <div>Penerima</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></body></html>`;
+    }
+
+    function renderHandovers() {
+        renderHandoverTable('laptop', 'laptopHandoverBody');
+        renderHandoverTable('add_on', 'addOnHandoverBody');
+    }
+
+    function renderHandoverTable(type, tbodyId) {
+        const filtered = handovers.filter(h => h.type === type);
+        const tbody = document.getElementById(tbodyId);
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Belum ada dokumen</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = filtered.map((h, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${escapeHtml(h.doc_number)}</strong></td>
+                <td>${formatDate(h.handover_date)}</td>
+                <td>${escapeHtml(h.from_name)}</td>
+                <td>${escapeHtml(h.to_name)}</td>
+                <td>${escapeHtml(h.to_department)}</td>
+                <td>${escapeHtml(h.merek || '')}${h.type_device ? ' ' + escapeHtml(h.type_device) : ''}</td>
+                <td>
+                    <div class="action-btns">
+                        <button class="btn-icon view" title="Cetak" onclick="window.appActions.printHandover(${h.id})">
+                            <i class="fas fa-print"></i>
+                        </button>
+                        <button class="btn-icon delete" title="Hapus" onclick="window.appActions.deleteHandover(${h.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`).join('');
+    }
+
     // ====== Global Action Handlers (for inline onclick) ======
     window.appActions = {
         viewAsset: showAssetDetail,
@@ -906,6 +1434,9 @@
         deleteAsset: deleteAsset,
         returnAsset: returnAsset,
         deleteLending: deleteLending,
+        printHandover: printHandover,
+        deleteHandover: deleteHandover,
+        closeHandoverModal: (id) => closeModal(id),
     };
 
     // ====== Start ======

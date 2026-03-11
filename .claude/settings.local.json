@@ -3,7 +3,8 @@
     "allow": [
       "Bash(where:*)",
       "Bash(php:*)",
-      "Bash(mysql:*)"
+      "Bash(mysql:*)",
+      "WebFetch(domain:docs.google.com)"
     ]
   }
 }
