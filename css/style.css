@@ -1098,6 +1098,96 @@ body {
     .modal.modal-lg { max-width: 98%; }
 }
 
+/* ====== Search Highlight ====== */
+mark {
+    background: #fef08a;
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* ====== Tom Select Override ====== */
+.ts-wrapper {
+    width: 100%;
+}
+
+.ts-wrapper .ts-control {
+    border: 1px solid var(--gray-200) !important;
+    border-radius: 8px !important;
+    padding: 8px 14px !important;
+    font-size: 0.9rem !important;
+    font-family: inherit !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    min-height: 42px !important;
+    cursor: text;
+    color: var(--gray-800) !important;
+}
+
+.ts-wrapper.focus .ts-control,
+.ts-wrapper.input-active .ts-control {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px var(--primary-light) !important;
+    background-color: #ffffff !important;
+}
+
+.ts-wrapper .ts-control input {
+    color: var(--gray-800) !important;
+    font-size: 0.9rem !important;
+    background: transparent !important;
+}
+
+.ts-dropdown {
+    border: 1px solid var(--gray-200) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12) !important;
+    font-family: inherit !important;
+    margin-top: 4px !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    z-index: 1000 !important;
+    overflow: hidden;
+}
+
+.ts-dropdown .ts-dropdown-content {
+    max-height: 260px;
+    background-color: #ffffff;
+}
+
+.ts-dropdown .option {
+    padding: 0 !important;
+    border-bottom: 1px solid var(--gray-100);
+    background-color: #ffffff;
+    color: var(--gray-800);
+}
+
+.ts-dropdown .option:last-child {
+    border-bottom: none;
+}
+
+.ts-dropdown .option.active,
+.ts-dropdown .option:hover {
+    background-color: var(--primary-light) !important;
+    color: var(--primary) !important;
+}
+
+.ts-dropdown .option.active strong,
+.ts-dropdown .option:hover strong {
+    color: var(--primary) !important;
+}
+
+.ts-dropdown .option span {
+    color: var(--gray-500);
+}
+
+.ts-dropdown .no-results {
+    background-color: #ffffff;
+    color: var(--gray-400);
+    padding: 12px 16px;
+    font-style: italic;
+}
+
 /* ====== Print ====== */
 @media print {
     .sidebar,

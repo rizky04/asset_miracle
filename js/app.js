@@ -370,8 +370,17 @@
     }
 
     // ====== Lending CRUD ======
+    let lendingTomSelect = null;
+
     function openLendingModal() {
         const form = document.getElementById('lendingForm');
+
+        // Destroy Tom Select before reset to avoid conflicts
+        if (lendingTomSelect) {
+            lendingTomSelect.destroy();
+            lendingTomSelect = null;
+        }
+
         form.reset();
         document.getElementById('lendingId').value = '';
         document.getElementById('lendingModalTitle').textContent = 'Pinjam Aset';
@@ -382,15 +391,48 @@
 
         // Populate available assets
         const select = document.getElementById('lendingAsset');
-        select.innerHTML = '<option value="">Pilih Aset</option>';
+        select.innerHTML = '<option value="">-- Cari atau pilih aset --</option>';
         assets
             .filter(a => !a.lent && a.good && !a.broken && !a.forSale && !a.obsolete)
             .forEach(a => {
                 const opt = document.createElement('option');
                 opt.value = a.id;
-                opt.textContent = `${a.name}${a.code ? ' (' + a.code + ')' : ''} - ${a.brand || a.category}`;
+                opt.textContent = `${a.name}${a.code ? ' (' + a.code + ')' : ''} — ${a.brand || a.category} | PIC: ${a.pic}`;
                 select.appendChild(opt);
             });
+
+        // Init Tom Select
+        lendingTomSelect = new TomSelect('#lendingAsset', {
+            placeholder: 'Ketik nama aset, kode, atau merek...',
+            allowEmptyOption: true,
+            maxOptions: 300,
+            searchField: ['text'],
+            onInitialize: function() {
+                // Force solid white background
+                const wrapper = this.wrapper;
+                const dropdown = this.dropdown;
+                if (wrapper)  wrapper.style.background = '#fff';
+                if (dropdown) dropdown.style.background = '#fff';
+            },
+            render: {
+                option: function(data) {
+                    const parts = data.text.split('—');
+                    const name  = parts[0] ? parts[0].trim() : data.text;
+                    const rest  = parts[1] ? parts[1].trim() : '';
+                    return `<div style="padding:7px 12px;background:#fff;">
+                        <strong style="font-size:0.88rem;color:#1e293b;">${name}</strong>
+                        ${rest ? `<br><span style="font-size:0.78rem;color:#64748b;">${rest}</span>` : ''}
+                    </div>`;
+                },
+                item: function(data) {
+                    const parts = data.text.split('—');
+                    return `<div style="color:#1e293b;">${parts[0] ? parts[0].trim() : data.text}</div>`;
+                },
+                no_results: function() {
+                    return `<div style="padding:10px 12px;color:#94a3b8;background:#fff;font-style:italic;">Aset tidak ditemukan</div>`;
+                },
+            },
+        });
 
         openModal('lendingModal');
     }
@@ -916,6 +958,14 @@
             });
         });
 
+        // Search
+        document.getElementById('searchHandoverLaptop').addEventListener('input', (e) => {
+            renderHandoverTable('laptop', 'laptopHandoverBody', e.target.value);
+        });
+        document.getElementById('searchHandoverAddOn').addEventListener('input', (e) => {
+            renderHandoverTable('add_on', 'addOnHandoverBody', e.target.value);
+        });
+
         // Laptop modal
         document.getElementById('btnAddLaptopHandover').addEventListener('click', () => openHandoverModal('laptop'));
         document.getElementById('laptopHandoverForm').addEventListener('submit', (e) => handleHandoverSubmit(e, 'laptop'));
@@ -923,6 +973,14 @@
         // Add On modal
         document.getElementById('btnAddAddOnHandover').addEventListener('click', () => openHandoverModal('add_on'));
         document.getElementById('addOnHandoverForm').addEventListener('submit', (e) => handleHandoverSubmit(e, 'add_on'));
+
+        // Reset editingHandoverId when modal closed via overlay
+        document.getElementById('laptopHandoverModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('laptopHandoverModal')) editingHandoverId = null;
+        });
+        document.getElementById('addOnHandoverModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('addOnHandoverModal')) editingHandoverId = null;
+        });
     }
 
     // Global function for dynamic list (called from inline onclick)
@@ -1391,30 +1449,60 @@
     }
 
     function renderHandovers() {
-        renderHandoverTable('laptop', 'laptopHandoverBody');
-        renderHandoverTable('add_on', 'addOnHandoverBody');
+        const qLaptop = document.getElementById('searchHandoverLaptop')?.value || '';
+        const qAddOn  = document.getElementById('searchHandoverAddOn')?.value  || '';
+        renderHandoverTable('laptop', 'laptopHandoverBody', qLaptop);
+        renderHandoverTable('add_on', 'addOnHandoverBody',  qAddOn);
     }
 
-    function renderHandoverTable(type, tbodyId) {
-        const filtered = handovers.filter(h => h.type === type);
+    function renderHandoverTable(type, tbodyId, query = '') {
+        const q = query.toLowerCase().trim();
+
+        const filtered = handovers.filter(h => {
+            if (h.type !== type) return false;
+            if (!q) return true;
+            const haystack = [
+                h.from_name, h.to_name, h.to_department,
+                h.merek, h.type_device, h.serial_number,
+                h.doc_number, h.device_label,
+            ].join(' ').toLowerCase();
+            return haystack.includes(q);
+        });
+
         const tbody = document.getElementById(tbodyId);
+
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Belum ada dokumen</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${q ? 'Tidak ada data yang cocok dengan pencarian.' : 'Belum ada dokumen'}</td></tr>`;
             return;
         }
+
+        function highlight(text, q) {
+            if (!q || !text) return escapeHtml(text || '');
+            const escaped = escapeHtml(text);
+            const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return escaped.replace(re, '<mark>$1</mark>');
+        }
+
         tbody.innerHTML = filtered.map((h, idx) => `
             <tr>
                 <td>${idx + 1}</td>
-                <td><strong>${escapeHtml(h.doc_number)}</strong></td>
+                <td><strong>${highlight(h.doc_number, q)}</strong></td>
                 <td>${formatDate(h.handover_date)}</td>
-                <td>${escapeHtml(h.from_name)}</td>
-                <td>${escapeHtml(h.to_name)}</td>
-                <td>${escapeHtml(h.to_department)}</td>
-                <td>${escapeHtml(h.merek || '')}${h.type_device ? ' ' + escapeHtml(h.type_device) : ''}</td>
+                <td>${highlight(h.from_name, q)}</td>
+                <td>${highlight(h.to_name, q)}</td>
+                <td>${highlight(h.to_department, q)}</td>
+                <td>
+                    ${highlight(h.merek || '', q)}
+                    ${h.type_device ? '<span style="color:var(--gray-500)"> · </span>' + highlight(h.type_device, q) : ''}
+                    ${h.serial_number ? '<br><small style="color:var(--gray-400);font-size:0.78rem;">S/N: ' + highlight(h.serial_number, q) + '</small>' : ''}
+                </td>
                 <td>
                     <div class="action-btns">
                         <button class="btn-icon view" title="Cetak" onclick="window.appActions.printHandover(${h.id})">
                             <i class="fas fa-print"></i>
+                        </button>
+                        <button class="btn-icon edit" title="Edit" onclick="window.appActions.editHandover(${h.id})">
+                            <i class="fas fa-pen"></i>
                         </button>
                         <button class="btn-icon delete" title="Hapus" onclick="window.appActions.deleteHandover(${h.id})">
                             <i class="fas fa-trash"></i>
@@ -1435,8 +1523,9 @@
         returnAsset: returnAsset,
         deleteLending: deleteLending,
         printHandover: printHandover,
+        editHandover: editHandover,
         deleteHandover: deleteHandover,
-        closeHandoverModal: (id) => closeModal(id),
+        closeHandoverModal: (id) => { editingHandoverId = null; closeModal(id); },
     };
 
     // ====== Start ======

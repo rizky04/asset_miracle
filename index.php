@@ -6,6 +6,7 @@
     <title>IT Asset Management - PT Geden</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.default.min.css">
 </head>
 <body>
     <!-- Sidebar -->
@@ -237,7 +238,10 @@
             <!-- Tab: Laptop -->
             <div class="htab-content active" id="htab-laptop">
                 <div class="page-actions" style="margin-top:20px;">
-                    <div></div>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchHandoverLaptop" placeholder="Cari nama, merek, tipe, S/N...">
+                    </div>
                     <button class="btn btn-primary" id="btnAddLaptopHandover">
                         <i class="fas fa-plus"></i> Buat Dokumen Laptop
                     </button>
@@ -268,7 +272,10 @@
             <!-- Tab: Add On -->
             <div class="htab-content" id="htab-add_on">
                 <div class="page-actions" style="margin-top:20px;">
-                    <div></div>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchHandoverAddOn" placeholder="Cari nama, merek, tipe, S/N...">
+                    </div>
                     <button class="btn btn-primary" id="btnAddAddOnHandover">
                         <i class="fas fa-plus"></i> Buat Dokumen Add On
                     </button>
@@ -753,6 +760,7 @@
     <!-- Toast Notification -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
